@@ -1,8 +1,11 @@
 import React from 'react'
-
+import Footer from '../components/Footer'
 const Appointment = () => {
   return (
-    <div>Appointment</div>
+    <>
+      <div></div>
+      <Footer />
+    </>
   )
 }
 

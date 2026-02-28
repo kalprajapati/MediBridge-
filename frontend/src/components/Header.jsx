@@ -15,9 +15,9 @@ const Header = () => {
                     <p>simply browse through our extensive list of trusted doctors, <br />
                         schedult your appointments hassle-free</p>
                 </div>
-                <Link to='#speciality' className="flex gap-3 justify-aroundF px-8 py-3 rounded-full bg-white text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300">Book Appointment
-                    <img classname = "w-3" src={assets_frontend.arrow_icon} />
-                </Link>
+                <a href='#speciality' className="flex gap-3 justify-around px-8 py-3 rounded-full bg-white text-sm m-auto md:m-0 hover:scale-105 transition-all duration-300">Book Appointment
+                    <img className = "w-3" src={assets_frontend.arrow_icon} />
+                </a>
 
             </div>
 

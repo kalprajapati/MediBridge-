@@ -9,10 +9,10 @@ const Navbar = () => {
   let [profile, setProfile] = useState(false)
   let [token, setToken] = useState(true)
   return (
-    <div className="flex items-center justify-between text-sm py-2 px-2 mb-3 mt-3 border rounded-lg border-gray-400 ">
+    <div className="flex items-center justify-between text-sm py-2 px-2 mb-6 mt-3  border-b border-gray-500">
       <div className="flex items-center gap-2 ">
-        <img src={assets_frontend.siteLogo} className='w-10 cursor-pointer' />
-        <span className="text-2xl font-semibold text-amber-400 ">MEDIBRIDGE</span>
+        <img onClick={()=>{navigate('/')}} src={assets_frontend.logo} className='w-32 cursor-pointer' />
+        
       </div>
 
 
