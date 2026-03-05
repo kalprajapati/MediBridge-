@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 
 const Header = () => {
     return (
-        <div className='flex flex-col md:flex-row flex-wrap border-amber-400 bg-amber-400 md:px-10 rounded-md'>
+        <div className='flex flex-col md:flex-row flex-wrap border-amber-400 bg-amber-400 px-4 md:px-10 rounded-md'>
             {/*-------------left side---------*/}
             <div className="md:w-1/2 flex flex-col items-start justify-center gap-4 m-auto py-10 md:py-[10vw] md:-mb-7.5 ">
                 <p className='text-white text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight md:leading-tight lg:leading-tight '>
