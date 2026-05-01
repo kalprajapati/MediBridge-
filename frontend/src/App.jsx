@@ -1,5 +1,6 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import Doctors from './pages/Doctors'
 import Login from './pages/Login'
@@ -10,15 +11,23 @@ import MyAppointments from './pages/MyAppointments'
 import Appointment from './pages/Appointment'
 import Navbar from './components/Navbar'
 import SignUp from './pages/SignUp'
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"; 
+import { ToastContainer } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css" 
+import AdminProtectedRoute from './components/AdminProtectedRoute'
+import AdminLayout from './components/AdminLayout'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AddDoctor from './pages/admin/AddDoctor'
+import DoctorsList from './pages/admin/DoctorsList'
 
 const App = () => {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+
   return (
     <>
       <ToastContainer />
-      <div className="mx-4 sm:mx-[2%]">
-        <Navbar />
+      <div className={isAdminRoute ? '' : 'mx-4 sm:mx-[2%]'}>
+       {!isAdminRoute && <Navbar />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/doctors" element={<Doctors />} />
@@ -32,6 +41,21 @@ const App = () => {
           <Route path="appointment/:docID" element={<Appointment />} />
           <Route path="/doctors/:speciality/appointment/:docID" element={<Appointment />} />
           <Route path="/doctors/appointment/:docID" element={<Appointment />} />
+          <Route path="/admin/login" element={<Login adminMode />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="add-doctor" element={<AddDoctor />} />
+            <Route path="doctors" element={<DoctorsList />} />
+          </Route>
+          
         </Routes>
       </div>
     </>

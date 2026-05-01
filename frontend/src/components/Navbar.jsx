@@ -19,7 +19,7 @@ const Navbar = () => {
   return (
     <div className="flex items-center justify-between text-sm py-2 px-2 mb-6 mt-3 border-gray-500 shadow-md">
       <div className="flex items-center gap-2 ">
-        <img onClick={() => { navigate('/ ') }} src={assets_frontend.logo} className='w-32 cursor-pointer' />
+        <img onClick={() => { navigate('/') }} src={assets_frontend.logo} className='w-32 cursor-pointer' />
 
       </div>
 
@@ -45,10 +45,10 @@ const Navbar = () => {
       </ul>
       <div className="flex items-center gap-4">
         {
-          token
+          token && userData
             ?
             <div onClick={() => setShowDropdown(!showDropdown)} className='flex items-center gap-2.5 cursor-pointer group relative'>
-              <img className='w-8 h-8 rounded-full overflow-hidden' src={userData.image} />
+              <img className='w-8 h-8 rounded-full object-cover' src={userData.image} />
               <img className='w-2.5' src={assets_frontend.dropdown_icon} />
               <div className={`absolute top-0 right-0 pt-14 text-sm font-medium text-gray-600 z-30 ${showDropdown ? "block" : "hidden"}`}  >
                 <div className='min-w-48 bg-stone-100 flex flex-col gap-4 p-4 rounded-md'>

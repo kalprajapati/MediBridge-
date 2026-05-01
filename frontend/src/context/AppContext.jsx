@@ -10,8 +10,13 @@ export const AppContext = createContext();
 const AppContextProvider = (props) => {
     const currencySymbol = '$';
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false)
+    const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') ? localStorage.getItem('adminToken') : '')
     const backendUrl = import.meta.env.VITE_BACKEND_URL
+    const adminBackendUrl = import.meta.env.VITE_ADMIN_BACKEND_URL
     const [userData, setUserData] = useState(false)
+
+    const [isAdmin, setIsAdmin] = useState(false)
+
     const loadUserData = async () => {
         try {
             const { data } =await axios.get(backendUrl + '/get-profile', { headers: { token } })
@@ -31,9 +36,11 @@ const AppContextProvider = (props) => {
         doctors,
         currencySymbol,
         token, setToken,
-        backendUrl,
+        adminToken, setAdminToken,
+        backendUrl,adminBackendUrl,
         userData, setUserData,
-        loadUserData
+        loadUserData, 
+        isAdmin, setIsAdmin
     }
     useEffect(() => {
         if (token) {
