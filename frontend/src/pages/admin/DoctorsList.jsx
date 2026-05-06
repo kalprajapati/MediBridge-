@@ -7,6 +7,7 @@ const DoctorsList = () => {
   const { adminBackendUrl, adminToken, currencySymbol } = useContext(AppContext)
   const [doctors, setDoctors] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState('')
 
   const fetchDoctors = async () => {
     try {
@@ -31,6 +32,32 @@ const DoctorsList = () => {
     fetchDoctors()
   }, [])
 
+  const deleteDoctor = async (doctorId, doctorName) => {
+    const shouldDelete = window.confirm(`Remove ${doctorName} from the database?`)
+
+    if (!shouldDelete) {
+      return
+    }
+
+    try {
+      setDeletingId(doctorId)
+      const { data } = await axios.post(adminBackendUrl + `/delete-doctor/${doctorId}`, {}, {
+        headers: { token: adminToken }
+      })
+
+      if (data.success) {
+        toast.success(data.message)
+        setDoctors((prev) => prev.filter((doctor) => doctor._id !== doctorId))
+      } else {
+        toast.error(data.message)
+      }
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setDeletingId('')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,6 +81,7 @@ const DoctorsList = () => {
                   <th className="px-4 py-3 font-medium">Fees</th>
                   <th className="px-4 py-3 font-medium">Address</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -80,6 +108,15 @@ const DoctorsList = () => {
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${doctor.available ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {doctor.available ? 'Available' : 'Unavailable'}
                       </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <button
+                        onClick={() => deleteDoctor(doctor._id, doctor.name)}
+                        disabled={deletingId === doctor._id}
+                        className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingId === doctor._id ? 'Removing...' : 'Remove'}
+                      </button>
                     </td>
                   </tr>
                 ))}

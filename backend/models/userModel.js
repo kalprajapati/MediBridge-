@@ -36,6 +36,18 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         default: '0000000000'
+    },
+    resetPasswordOtp: {
+        type: String,
+        default: ''
+    },
+    resetPasswordOtpExpiresAt: {
+        type: Date,
+        default: null
+    },
+    resetPasswordOtpVerified: {
+        type: Boolean,
+        default: false
     }
 }, { minimize: false })
 

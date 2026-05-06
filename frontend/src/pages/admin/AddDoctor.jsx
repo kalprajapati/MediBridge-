@@ -93,6 +93,10 @@ const AddDoctor = () => {
             <option>Pediatricians</option>
             <option>Neurologist</option>
             <option>Gastroenterologist</option>
+            <option>Cardiologist</option>
+            <option>Diabetologist</option>
+            <option>Oncologist</option>
+            <option>Psychiatrist</option>
           </select>
           <input className="rounded border px-3 py-2" placeholder="Degree" value={form.degree} onChange={(e) => updateField('degree', e.target.value)} required />
           <input className="rounded border px-3 py-2" placeholder="Experience" value={form.experience} onChange={(e) => updateField('experience', e.target.value)} required />

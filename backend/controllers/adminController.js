@@ -142,4 +142,33 @@ const allDoctors = async (req, res) => {
     }
 };
 
-export { addDoctor, loginAdmin, allDoctors };
+// ================= DELETE DOCTOR =================
+const deleteDoctor = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+
+        const doctor = await doctorModel.findById(doctorId);
+
+        if (!doctor) {
+            return res.json({
+                success: false,
+                message: "Doctor not found!"
+            });
+        }
+
+        await doctorModel.findByIdAndDelete(doctorId);
+
+        res.json({
+            success: true,
+            message: "Doctor removed!"
+        });
+    } catch (err) {
+        console.log(err);
+        res.json({
+            success: false,
+            message: "Error removing doctor!"
+        });
+    }
+};
+
+export { addDoctor, loginAdmin, allDoctors, deleteDoctor };

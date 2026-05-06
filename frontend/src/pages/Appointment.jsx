@@ -3,18 +3,21 @@ import Footer from '../components/Footer'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext';
 import { assets_frontend } from '../assets/assets';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 const Appointment = () => {
   let { docID } = useParams();
-  let { doctors, currencySymbol } = useContext(AppContext);
+  let { doctors, currencySymbol, token, backendUrl, loadDoctors } = useContext(AppContext);
   let [docInfo, setDocInfo] = useState(null);
 
   let [relativeDocs, setRelativeDocs] = useState();
 
   let navigate = useNavigate();
 
-  let [slots, setSlots] = useState();
+  let [slots, setSlots] = useState([]);
   let [selectedDate, setSelectedDate] = useState();
   let [selectedTime, setSelectedTime] = useState();
+  let [booking, setBooking] = useState(false);
 
 
   let fetchDoc = async () => {
@@ -45,9 +48,15 @@ const Appointment = () => {
     for (let i = 0; i < 7; i++) {
       let date = new Date();
       date.setDate(date.getDate() + i);
+      const slotDate = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
+      ].join('-');
 
       let daySlots = {
         dateObj: date,
+        slotDate,
         date: date.getDate(),
         month: date.getMonth(),
         year: date.getFullYear(),
@@ -67,6 +76,41 @@ const Appointment = () => {
     setSlots(tempSlots);
     setSelectedTime(tempSlots[0].times[0]);
     setSelectedDate(tempSlots[0]);
+  }
+
+  const bookAppointment = async () => {
+    if (!token) {
+      toast.error('Login to book appointment')
+      navigate('/login')
+      return
+    }
+
+    if (!selectedDate || !selectedTime) {
+      toast.error('Select appointment date and time')
+      return
+    }
+
+    try {
+      setBooking(true)
+      const { data } = await axios.post(backendUrl + '/book-appointment', {
+        docId: docID,
+        slotDate: selectedDate.slotDate,
+        slotTime: selectedTime
+      }, { headers: { token } })
+
+      if (data.success) {
+        toast.success(data.message)
+        await loadDoctors()
+        navigate('/my-appointments')
+      } else {
+        toast.error(data.message)
+      }
+    } catch (err) {
+      console.log(err)
+      toast.error(err.message)
+    } finally {
+      setBooking(false)
+    }
   }
 
   console.log(slots);
@@ -134,18 +178,25 @@ const Appointment = () => {
               ))}
             </div>
             <div className="flex flex-wrap gap-4 mt-6">
-              {selectedDate?.times.map((time, index) => (
+              {selectedDate?.times.map((time, index) => {
+                const booked = docInfo.slots_booked?.[selectedDate.slotDate]?.includes(time)
+
+                return (
                 <button
                   key={index}
-                  onClick={() => setSelectedTime(time)}
+                  onClick={() => !booked && setSelectedTime(time)}
+                  disabled={booked}
                   className={`px-4 py-2 rounded-lg border border-gray-500 
-                  ${selectedTime === time ? "bg-amber-400 text-white border-white shadow-md" : "text-gray-500"} cursor-pointer`}
+                  ${selectedTime === time ? "bg-amber-400 text-white border-white shadow-md" : "text-gray-500"} ${booked ? "cursor-not-allowed bg-gray-100 text-gray-300 line-through" : "cursor-pointer"}`}
                 >
                   {time}
                 </button>
-              ))}
+                )
+              })}
             </div>
-            <button className='max-w-60 py-3 px-10 rounded-full bg-amber-400 text-white cursor-pointer '>Book Appointment</button>
+            <button onClick={bookAppointment} disabled={booking || !selectedTime} className='max-w-60 py-3 px-10 rounded-full bg-amber-400 text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60'>
+              {booking ? 'Booking...' : 'Book Appointment'}
+            </button>
           </div>
           <div className='flex flex-col justify-center items-center mt-8 gap-8 '>
             <div className='flex  flex-col items-center gap-3'>

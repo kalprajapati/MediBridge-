@@ -1,12 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { assets, assets_frontend } from '../assets/assets';
+import login from '../pages/Login';
 
 const Banner = () => {
     let navigate = useNavigate();
     const navigateToLogin = (e) =>{
-        e.preventDefault();
-        navigate('/login')
+        e.preventDefault(); 
+        navigate("/login");
     }
 
     

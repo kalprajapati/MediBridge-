@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { doctors } from "../assets/assets";
+import { doctors as staticDoctors } from "../assets/assets";
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -8,14 +8,28 @@ import { useEffect } from "react";
 export const AppContext = createContext();
 
 const AppContextProvider = (props) => {
-    const currencySymbol = '$';
+    const currencySymbol = '₹';
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false)
     const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') ? localStorage.getItem('adminToken') : '')
     const backendUrl = import.meta.env.VITE_BACKEND_URL
     const adminBackendUrl = import.meta.env.VITE_ADMIN_BACKEND_URL
     const [userData, setUserData] = useState(false)
+    const [doctors, setDoctors] = useState(staticDoctors)
 
     const [isAdmin, setIsAdmin] = useState(false)
+
+    const loadDoctors = async () => {
+        try {
+            const { data } = await axios.get(backendUrl + '/doctors')
+            if (data.success) {
+                setDoctors(data.doctors)
+            } else {
+                toast.error(data.message)
+            }
+        } catch (err) {
+            console.log(err)
+        }
+    }
 
     const loadUserData = async () => {
         try {
@@ -39,9 +53,14 @@ const AppContextProvider = (props) => {
         adminToken, setAdminToken,
         backendUrl,adminBackendUrl,
         userData, setUserData,
-        loadUserData, 
+        loadUserData,
+        loadDoctors,
         isAdmin, setIsAdmin
     }
+    useEffect(() => {
+        loadDoctors()
+    }, [])
+
     useEffect(() => {
         if (token) {
             loadUserData()
