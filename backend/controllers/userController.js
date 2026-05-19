@@ -6,6 +6,8 @@ import { v2 as cloudinary } from 'cloudinary'
 import doctorModel from '../models/doctorModel.js'
 import appointmentModel from '../models/appointmentModel.js'
 import sendPasswordResetEmail from '../config/email.js'
+import createRazorpayInstance from '../config/razorpay.js'
+import crypto from 'crypto'
 //API to register user
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
@@ -507,4 +509,173 @@ const cancelAppointment = async (req, res) => {
     }
 }
 
-export { registerUser, loginUser, forgotPassword, verifyResetCode, resetPassword, getProfile, updateProfile, listDoctors, bookAppointment, listAppointments, cancelAppointment }
+const paymentRazorpay = async (req, res) => {
+    try {
+        const userId = req.userId
+        const { appointmentId } = req.body
+
+        if (!appointmentId) {
+            return res.json({
+                success: false,
+                message: "Appointment is required"
+            })
+        }
+
+        const appointment = await appointmentModel.findById(appointmentId)
+
+        if (!appointment) {
+            return res.json({
+                success: false,
+                message: "Appointment not found"
+            })
+        }
+
+        if (appointment.userId !== userId) {
+            return res.json({
+                success: false,
+                message: "Not authorized to pay for this appointment"
+            })
+        }
+
+        if (appointment.cancelled) {
+            return res.json({
+                success: false,
+                message: "Cancelled appointments cannot be paid"
+            })
+        }
+
+        if (appointment.payment) {
+            return res.json({
+                success: false,
+                message: "Appointment is already paid"
+            })
+        }
+
+        const razorpayInstance = createRazorpayInstance()
+        const order = await razorpayInstance.orders.create({
+            amount: Math.round(appointment.amount * 100),
+            currency: "INR",
+            receipt: `appt_${appointment._id.toString().slice(-24)}`,
+            notes: {
+                appointmentId: appointment._id.toString(),
+                userId
+            }
+        })
+
+        appointment.razorpayOrderId = order.id
+        await appointment.save()
+
+        res.json({
+            success: true,
+            order
+        })
+    } catch (err) {
+        console.log(err)
+        res.json({
+            success: false,
+            message: err.message === 'Razorpay is not configured'
+                ? "Payment service is not configured"
+                : "Error creating payment order"
+        })
+    }
+}
+
+const verifyRazorpay = async (req, res) => {
+    try {
+        const userId = req.userId
+        const {
+            appointmentId,
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        } = req.body
+
+        if (!appointmentId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.json({
+                success: false,
+                message: "Payment verification details are required"
+            })
+        }
+
+        const appointment = await appointmentModel.findById(appointmentId)
+
+        if (!appointment) {
+            return res.json({
+                success: false,
+                message: "Appointment not found"
+            })
+        }
+
+        if (appointment.userId !== userId) {
+            return res.json({
+                success: false,
+                message: "Not authorized to verify this payment"
+            })
+        }
+
+        if (appointment.cancelled) {
+            return res.json({
+                success: false,
+                message: "Cancelled appointments cannot be paid"
+            })
+        }
+
+        if (appointment.payment) {
+            return res.json({
+                success: false,
+                message: "Appointment is already paid"
+            })
+        }
+
+        if (appointment.razorpayOrderId !== razorpay_order_id) {
+            return res.json({
+                success: false,
+                message: "Payment order mismatch"
+            })
+        }
+
+        if (!process.env.RAZORPAY_KEY_SECRET) {
+            return res.json({
+                success: false,
+                message: "Payment service is not configured"
+            })
+        }
+
+        const generatedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest('hex')
+
+        const signatureBuffer = Buffer.from(razorpay_signature)
+        const generatedSignatureBuffer = Buffer.from(generatedSignature)
+
+        if (
+            signatureBuffer.length !== generatedSignatureBuffer.length ||
+            !crypto.timingSafeEqual(signatureBuffer, generatedSignatureBuffer)
+        ) {
+            return res.json({
+                success: false,
+                message: "Payment verification failed"
+            })
+        }
+
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            payment: true,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id
+        })
+
+        res.json({
+            success: true,
+            message: "Payment successful"
+        })
+    } catch (err) {
+        console.log(err)
+        res.json({
+            success: false,
+            message: "Error verifying payment"
+        })
+    }
+}
+
+export { registerUser, loginUser, forgotPassword, verifyResetCode, resetPassword, getProfile, updateProfile, listDoctors, bookAppointment, listAppointments, cancelAppointment, paymentRazorpay, verifyRazorpay }

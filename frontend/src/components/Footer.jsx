@@ -26,7 +26,7 @@ const Footer = () => {
                     <h2 className='mb-5'>COMPANY</h2>
                     <ul className='leading-7 cursor-pointer'>
                         <li onClick={() => { navigate('/'); scrollTo(0, 0) }}>Home</li>
-                        <li>About Us</li>
+                        <li onClick={()=>{navigate('/About'); scrollTo(0,0)}}>About Us</li>
                         <li>Contact Us</li>
                         <li>Privacy Policy</li>
                     </ul>

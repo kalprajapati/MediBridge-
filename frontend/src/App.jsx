@@ -22,12 +22,14 @@ import DoctorsList from './pages/admin/DoctorsList'
 const App = () => {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/admin/login'
+  const showNavbar = !isAdminRoute && !isAuthRoute
 
   return (
     <>
       <ToastContainer />
-      <div className={isAdminRoute ? '' : 'mx-4 sm:mx-[2%]'}>
-       {!isAdminRoute && <Navbar />}
+      <div className={isAdminRoute || isAuthRoute ? '' : 'mx-4 sm:mx-[2%]'}>
+       {showNavbar && <Navbar />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/doctors" element={<Doctors />} />

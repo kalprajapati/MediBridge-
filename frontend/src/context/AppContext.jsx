@@ -16,8 +16,6 @@ const AppContextProvider = (props) => {
     const [userData, setUserData] = useState(false)
     const [doctors, setDoctors] = useState(staticDoctors)
 
-    const [isAdmin, setIsAdmin] = useState(false)
-
     const loadDoctors = async () => {
         try {
             const { data } = await axios.get(backendUrl + '/doctors')
@@ -54,8 +52,7 @@ const AppContextProvider = (props) => {
         backendUrl,adminBackendUrl,
         userData, setUserData,
         loadUserData,
-        loadDoctors,
-        isAdmin, setIsAdmin
+        loadDoctors
     }
     useEffect(() => {
         loadDoctors()
