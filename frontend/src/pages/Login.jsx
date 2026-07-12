@@ -1,240 +1,192 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import Footer from '../components/Footer';
-import { useContext } from 'react';
-import { AppContext } from '../context/AppContext';
+import { AppContext } from '../context/AppContext'
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { assets_frontend } from '../assets/assets';
+import { assets_frontend } from '../assets/assets'
+
+const InputField = ({ label, ...props }) => (
+  <div className="flex flex-col gap-1.5">
+    {label && <label className="form-label">{label}</label>}
+    <input className="input-field" {...props} />
+  </div>
+)
 
 const Login = ({ adminMode = false }) => {
-  let navigate = useNavigate();
-  let [email, setEmail] = useState("");
-  let [password, setPassword] = useState("");
-  let [loginMode, setLoginMode] = useState(adminMode ? 'admin' : 'user');
-  let [resetStep, setResetStep] = useState('login');
-  let [resetCode, setResetCode] = useState("");
-  let [newPassword, setNewPassword] = useState("");
-  let [confirmPassword, setConfirmPassword] = useState("");
-  let [loading, setLoading] = useState(false);
-  const { token, setToken, adminToken, setAdminToken, backendUrl, adminBackendUrl } = useContext(AppContext);
-  const loginAsAdmin = loginMode === 'admin'
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginMode, setLoginMode] = useState(adminMode ? 'admin' : 'user')
+  const [resetStep, setResetStep] = useState('login')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const switchLoginMode = (mode) => {
-    setLoginMode(mode)
-    setResetStep('login')
-    setPassword("")
-  }
+  const { token, setToken, adminToken, setAdminToken, backendUrl, adminBackendUrl } = useContext(AppContext)
+  const isAdmin = loginMode === 'admin'
 
-  let submitHandler = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (isAdmin && adminToken) navigate('/admin/dashboard')
+    else if (!isAdmin && token) navigate('/')
+  }, [token, adminToken, isAdmin])
+
+  const submitHandler = async (e) => {
+    e.preventDefault()
+    setLoading(true)
     try {
-      const { data } = await axios.post((loginAsAdmin ? adminBackendUrl : backendUrl) + '/login', { email, password })
-      console.log(data)
-
+      const url = (isAdmin ? adminBackendUrl : backendUrl) + '/login'
+      const { data } = await axios.post(url, { email, password })
       if (data.success) {
-        if (loginAsAdmin) {
-          localStorage.setItem('adminToken', data.token)
-          setAdminToken(data.token)
-        } else {
-          localStorage.setItem('token', data.token)
-          setToken(data.token)
-        }
-
-      } else {
-        console.log(data.message)
-        toast.error(data.message)
-      }
-    } catch (err) {
-      console.log(err);
-    }
+        if (isAdmin) { localStorage.setItem('adminToken', data.token); setAdminToken(data.token) }
+        else { localStorage.setItem('token', data.token); setToken(data.token) }
+      } else toast.error(data.message)
+    } catch (err) { toast.error(err.message) }
+    finally { setLoading(false) }
   }
 
   const sendResetCode = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+    e.preventDefault(); setLoading(true)
     try {
       const { data } = await axios.post(backendUrl + '/forgot-password', { email })
-
-      if (data.success) {
-        toast.success(data.message)
-        setResetStep('code')
-      } else {
-        toast.error(data.message)
-      }
-    } catch (err) {
-      console.log(err)
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
+      if (data.success) { toast.success(data.message); setResetStep('code') }
+      else toast.error(data.message)
+    } catch (err) { toast.error(err.message) }
+    finally { setLoading(false) }
   }
 
   const verifyResetCode = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+    e.preventDefault(); setLoading(true)
     try {
       const { data } = await axios.post(backendUrl + '/verify-reset-code', { email, otp: resetCode })
-
-      if (data.success) {
-        toast.success(data.message)
-        setResetStep('password')
-      } else {
-        toast.error(data.message)
-      }
-    } catch (err) {
-      console.log(err)
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
+      if (data.success) { toast.success(data.message); setResetStep('password') }
+      else toast.error(data.message)
+    } catch (err) { toast.error(err.message) }
+    finally { setLoading(false) }
   }
 
   const resetPassword = async (e) => {
-    e.preventDefault();
-
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-
-    setLoading(true);
-
+    e.preventDefault()
+    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return }
+    setLoading(true)
     try {
-      const { data } = await axios.post(backendUrl + '/reset-password', {
-        email,
-        otp: resetCode,
-        password: newPassword
-      })
-
-      if (data.success) {
-        toast.success(data.message)
-        setPassword("")
-        setResetCode("")
-        setNewPassword("")
-        setConfirmPassword("")
-        setResetStep('login')
-      } else {
-        toast.error(data.message)
-      }
-    } catch (err) {
-      console.log(err)
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
+      const { data } = await axios.post(backendUrl + '/reset-password', { email, otp: resetCode, password: newPassword })
+      if (data.success) { toast.success(data.message); setResetStep('login'); setResetCode(''); setNewPassword(''); setConfirmPassword('') }
+      else toast.error(data.message)
+    } catch (err) { toast.error(err.message) }
+    finally { setLoading(false) }
   }
 
-  const backToLogin = () => {
-    setResetStep('login')
-    setResetCode("")
-    setNewPassword("")
-    setConfirmPassword("")
-  }
-
-  useEffect(() => {
-    if (loginAsAdmin) {
-      if (adminToken) {
-        console.log("admin logged in successfully!")
-        navigate('/admin/dashboard')  // navigate admin somewhere
-      }
-    } else {
-      if (token) {
-        navigate('/')
-      }
-    }
-  }, [token, adminToken, loginAsAdmin, navigate])
+  const isResetFlow = resetStep !== 'login'
 
   return (
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-5xl flex rounded-2xl overflow-hidden shadow-xl border border-blue-100">
 
-    <div className='min-h-screen bg-slate-50 flex flex-col'>
-      <div className='w-full px-4 py-4 sm:px-8 lg:px-12'>
-        <div className='mx-auto flex max-w-6xl items-center justify-between'>
-          <NavLink to='/' className='flex items-center'>
-            <img src={assets_frontend.logo} alt="MediBridge" className='h-10 w-auto' />
+        {/* Left panel (decorative) */}
+        <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-blue-600 to-blue-700 w-[48%] flex-shrink-0 p-10 relative overflow-hidden">
+          <NavLink to="/">
+            <img src={assets_frontend.logo} className="h-9 w-auto brightness-0 invert" alt="Logo" />
           </NavLink>
-          <NavLink to='/' className='rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950'>
-            Back to home
-          </NavLink>
-        </div>
-      </div>
-
-      <main className='mx-auto grid w-full max-w-6xl flex-1 items-center gap-8 px-4 pb-10 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-12'>
-        <section className='hidden overflow-hidden rounded-2xl bg-[#5f6fff] lg:block'>
-          <div className='relative min-h-[620px] p-10 text-white'>
-            <div className='relative z-10 max-w-md'>
-              <p className='mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-white/75'>Prescripto</p>
-              <h1 className='text-4xl font-semibold leading-tight'>Healthcare access, simplified.</h1>
-            </div>
-            <img src={assets_frontend.appointment_img} alt="Doctor consultation" className='absolute bottom-0 right-0 w-[82%] max-w-[520px]' />
+          <div className="relative z-10">
+            <h2 className="text-3xl font-bold text-white leading-tight mb-3">
+              {isAdmin ? 'Admin Portal' : isResetFlow ? 'Reset Your Password' : 'Welcome Back'}
+            </h2>
+            <p className="text-blue-100 text-sm leading-relaxed">
+              {isAdmin
+                ? 'Manage doctors, appointments and platform stats from one dashboard.'
+                : isResetFlow
+                ? 'Follow the steps to securely reset your account password.'
+                : 'Book appointments with top doctors. Your health, simplified.'}
+            </p>
           </div>
-        </section>
-
-        <section className='w-full'>
-      <div className='mx-auto flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white px-5 py-6 shadow-xl shadow-slate-200/70 sm:px-8 sm:py-8'>
-        <div className='flex flex-col mb-3'>
-          <h2 className='text-2xl font-semibold text-gray-700'>{resetStep === 'login' ? 'LOGIN' : 'RESET PASSWORD'}</h2>
-          <h4 className='text-sm text-gray-700'>
-            {resetStep === 'login' ? 'Please Login to book appointment' : 'Use your registered email to change password'}
-          </h4>
+          <img
+            src={assets_frontend.appointment_img}
+            className="absolute bottom-0 right-0 w-3/4 opacity-20"
+            alt=""
+          />
+          <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 -translate-y-1/3 translate-x-1/3" />
         </div>
 
-        <div>
-          {loginAsAdmin ?
-            <>
-              <form onSubmit={submitHandler} method='post' className='flex flex-col gap-5 mb-4 '>
-                <input placeholder='Admin Email' name='email' type='text' onChange={(e) => setEmail(e.target.value)} value={email} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                <input placeholder='Admin Password' name="password" type='password' value={password} onChange={(e) => { setPassword(e.target.value) }} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                <button className='px-3 py-1 rounded-sm bg-amber-400 text-white font-md cursor-pointer hover:bg-amber-500 transition-all duration-50' type='submit'>Login</button>
+        {/* Right panel (form) */}
+        <div className="flex-1 bg-white p-8 sm:p-10 flex flex-col justify-center">
+          <div className="max-w-sm mx-auto w-full">
+
+            {/* Mobile logo */}
+            <NavLink to="/" className="lg:hidden flex mb-6">
+              <img src={assets_frontend.logo} className="h-8 w-auto" alt="Logo" />
+            </NavLink>
+
+            <h3 className="text-2xl font-bold text-slate-800 mb-1">
+              {isAdmin ? 'Admin Login' : isResetFlow ? 'Reset Password' : 'Sign In'}
+            </h3>
+            <p className="text-sm text-slate-400 mb-7">
+              {isAdmin ? 'Enter admin credentials to continue' : isResetFlow ? 'Follow the steps below' : "Don't have an account? "}
+              {!isAdmin && !isResetFlow && (
+                <NavLink to="/signup" className="text-blue-600 font-medium hover:underline">Sign up</NavLink>
+              )}
+            </p>
+
+            {/* Admin form */}
+            {isAdmin && (
+              <form onSubmit={submitHandler} className="flex flex-col gap-4">
+                <InputField label="Admin Email" type="email" placeholder="admin@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <InputField label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+                  {loading ? 'Signing in…' : 'Sign In as Admin'}
+                </button>
+                <button type="button" onClick={() => setLoginMode('user')} className="text-sm text-blue-600 hover:underline text-center">
+                  Switch to User Login
+                </button>
               </form>
-              <p className='underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={() => switchLoginMode('user')}>User Login</p>
-            </>
+            )}
 
-            : resetStep === 'login' ?
-              <>
-                <form onSubmit={submitHandler} method='post' className='flex flex-col gap-5 mb-4 '>
-                  <input placeholder='Email' name='email' type='text' onChange={(e) => setEmail(e.target.value)} value={email} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                  <input placeholder='Password' name="password" type='password' value={password} onChange={(e) => { setPassword(e.target.value) }} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                  <button className='px-3 py-1 rounded-sm bg-amber-400 text-white font-md cursor-pointer hover:bg-amber-500 transition-all duration-50' type='submit'>Login</button>
-                </form>
-                <div className='flex flex-col gap-2'>
-                  <button type='button' className='text-left underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={() => setResetStep('email')}>Forgot password?</button>
-                  <p className='underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={() => switchLoginMode('admin')}>Admin Login</p>
+            {/* User: Login */}
+            {!isAdmin && resetStep === 'login' && (
+              <form onSubmit={submitHandler} className="flex flex-col gap-4">
+                <InputField label="Email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <InputField label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => setResetStep('email')} className="text-xs text-blue-600 hover:underline">Forgot password?</button>
                 </div>
-              </>
-              : resetStep === 'email' ?
-                <form onSubmit={sendResetCode} method='post' className='flex flex-col gap-5 mb-4 '>
-                  <input placeholder='Registered Email' name='email' type='email' onChange={(e) => setEmail(e.target.value)} value={email} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                  <button disabled={loading} className='px-3 py-1 rounded-sm bg-amber-400 text-white font-md cursor-pointer hover:bg-amber-500 disabled:opacity-60 transition-all duration-50' type='submit'>{loading ? 'Sending...' : 'Send Code'}</button>
-                  <button type='button' className='text-left underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={backToLogin}>Back to login</button>
-                </form>
-                : resetStep === 'code' ?
-                  <form onSubmit={verifyResetCode} method='post' className='flex flex-col gap-5 mb-4 '>
-                    <input placeholder='6 Digit Code' name='resetCode' type='text' inputMode='numeric' maxLength='6' onChange={(e) => setResetCode(e.target.value)} value={resetCode} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                    <button disabled={loading} className='px-3 py-1 rounded-sm bg-amber-400 text-white font-md cursor-pointer hover:bg-amber-500 disabled:opacity-60 transition-all duration-50' type='submit'>{loading ? 'Verifying...' : 'Verify Code'}</button>
-                    <button type='button' className='text-left underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={() => setResetStep('email')}>Resend code</button>
-                  </form>
-                  :
-                  <form onSubmit={resetPassword} method='post' className='flex flex-col gap-5 mb-4 '>
-                    <input placeholder='New Password' name='newPassword' type='password' onChange={(e) => setNewPassword(e.target.value)} value={newPassword} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                    <input placeholder='Confirm Password' name='confirmPassword' type='password' onChange={(e) => setConfirmPassword(e.target.value)} value={confirmPassword} required className='border px-3 py-1 rounded-sm border-gray-400' />
-                    <button disabled={loading} className='px-3 py-1 rounded-sm bg-amber-400 text-white font-md cursor-pointer hover:bg-amber-500 disabled:opacity-60 transition-all duration-50' type='submit'>{loading ? 'Changing...' : 'Change Password'}</button>
-                    <button type='button' className='text-left underline text-blue-500 hover:text-blue-700 cursor-pointer' onClick={backToLogin}>Back to login</button>
-                  </form>
-          }
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+                  {loading ? 'Signing in…' : 'Sign In'}
+                </button>
+                <button type="button" onClick={() => setLoginMode('admin')} className="text-sm text-slate-400 hover:text-blue-600 text-center transition">Admin Login →</button>
+              </form>
+            )}
 
+            {/* Forgot: email step */}
+            {!isAdmin && resetStep === 'email' && (
+              <form onSubmit={sendResetCode} className="flex flex-col gap-4">
+                <p className="text-sm text-slate-500 bg-blue-50 rounded-lg p-3 border border-blue-100">Enter your registered email and we'll send a 6-digit code.</p>
+                <InputField label="Registered Email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3">{loading ? 'Sending…' : 'Send Code'}</button>
+                <button type="button" onClick={() => setResetStep('login')} className="text-sm text-slate-400 hover:text-slate-700 transition text-center">← Back to Login</button>
+              </form>
+            )}
 
+            {/* Forgot: verify code */}
+            {!isAdmin && resetStep === 'code' && (
+              <form onSubmit={verifyResetCode} className="flex flex-col gap-4">
+                <p className="text-sm text-slate-500 bg-blue-50 rounded-lg p-3 border border-blue-100">Enter the 6-digit code we sent to <strong>{email}</strong></p>
+                <InputField label="6-Digit Code" type="text" inputMode="numeric" maxLength="6" placeholder="123456" value={resetCode} onChange={e => setResetCode(e.target.value)} required />
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3">{loading ? 'Verifying…' : 'Verify Code'}</button>
+                <button type="button" onClick={() => setResetStep('email')} className="text-sm text-blue-600 hover:underline text-center">Resend code</button>
+              </form>
+            )}
 
+            {/* Forgot: new password */}
+            {!isAdmin && resetStep === 'password' && (
+              <form onSubmit={resetPassword} className="flex flex-col gap-4">
+                <InputField label="New Password" type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+                <InputField label="Confirm Password" type="password" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3">{loading ? 'Changing…' : 'Set New Password'}</button>
+              </form>
+            )}
+          </div>
         </div>
-
-
-        {!loginAsAdmin && resetStep === 'login' && <p className='text-sm'>Don't have an account? <NavLink to='/signup' className="text-blue-500 underline hover:text-blue-700">sign up now</NavLink></p>}
       </div>
-        </section>
-      </main>
-      <Footer />
     </div>
   )
 }

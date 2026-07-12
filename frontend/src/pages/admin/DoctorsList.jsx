@@ -41,7 +41,7 @@ const DoctorsList = () => {
 
     try {
       setDeletingId(doctorId)
-      const { data } = await axios.post(adminBackendUrl + `/delete-doctor/${doctorId}`, {}, {
+      const { data } = await axios.delete(adminBackendUrl + `/delete-doctor/${doctorId}`, {
         headers: { token: adminToken }
       })
 

@@ -1,25 +1,37 @@
 import React from 'react'
-import { assets, assets_frontend, specialityData } from '../assets/assets'
+import { specialityData } from '../assets/assets'
 import { Link } from 'react-router-dom'
 
 const SpecialityMenu = () => {
-    return (
-        <div id="speciality" className="flex flex-col justify-center items-center mt-16 gap-4 px-4">
-            <h1 className='font-medium md:text-3xl sm:text-2xl text-gray-900 '>Find by Speciality</h1>
-            <p className=' sm:w-1/3 text-center text-sm '>Simply browse through our extensive list of trusted doctors,
-                schedule your appointment hassle-free</p>
-            <div className='flex flex-col sm:flex-row gap-4 sm:justify-center pt-5 overflow-hidden'>
-                {
-                    specialityData.map((item, index) => (
-                        <Link onClick={() => scrollTo(0, 0)} className="flex flex-col items-center text-xs cursor-pointer shrink-0 hover:translate-y-[-10px] duration-200" key={index} to={`/doctors/${item.speciality}`}>
-                            <img className="w-16 sm:w-24 mb-2" src={item.image} />
-                            <p> {item.speciality}</p>
-                        </Link>
-                    ))
-                }
-            </div>
+  return (
+    <section id="speciality" className="py-14 px-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-10">
+          <span className="badge badge-blue mb-3">SPECIALITIES</span>
+          <h2 className="section-title">Find by Speciality</h2>
+          <p className="section-sub mt-3">
+            Browse certified specialists across every medical field — and book your appointment in seconds.
+          </p>
         </div>
-    )
+
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+          {specialityData.map((item, index) => (
+            <Link
+              key={index}
+              to={`/doctors/${item.speciality}`}
+              onClick={() => scrollTo(0, 0)}
+              className="spec-chip"
+            >
+              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+                <img className="w-9 h-9 object-contain" src={item.image} alt={item.speciality} />
+              </div>
+              <span className="text-center">{item.speciality}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 export default SpecialityMenu

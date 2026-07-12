@@ -8,211 +8,155 @@ import appointmentModel from '../models/appointmentModel.js'
 import sendPasswordResetEmail from '../config/email.js'
 import createRazorpayInstance from '../config/razorpay.js'
 import crypto from 'crypto'
-//API to register user
 
+// Shared constants
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
 const otpExpiryMinutes = 10
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const findUserByEmail = (email) => userModel.findOne({ email: new RegExp(`^${escapeRegExp(email)}$`, 'i') })
 
+// ================= REGISTER USER =================
 const registerUser = async (req, res) => {
     try {
-
         const { name, email, password } = req.body
-        console.log(name, email, password)
 
         if (!name || !email || !password) {
-            return res.json({
-                success: false,
-                message: "fill all the fields"
-            })
+            return res.json({ success: false, message: "fill all the fields" })
         }
 
-        //validating email
         if (!validator.isEmail(email)) {
             return res.json({ success: false, message: "Please enter a valid email" })
         }
 
-        //checks if user exists or not 
         const userExists = await userModel.findOne({ email })
-
         if (userExists) {
-            return res.json({
-                success: false,
-                message: "User already exists with this email"
-            })
+            return res.json({ success: false, message: "User already exists with this email" })
         }
 
-        // password validation
         if (!passwordRegex.test(password)) {
             return res.json({
                 success: false,
                 message: "Password must contain uppercase, lowercase, number and special character"
             })
         }
-        //hashing the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPass = await bcrypt.hash(password, salt);
 
-        const userData = {
-            name,
-            email,
-            password: hashedPass
-        }
+        const salt = await bcrypt.genSalt(10)
+        const hashedPass = await bcrypt.hash(password, salt)
 
-        const newUser = new userModel(userData);
-        const user = await newUser.save();
+        const newUser = new userModel({ name, email, password: hashedPass })
+        const user = await newUser.save()
 
-        //creating token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
-        res.json({
-            success: true,
-            token: token
-        })
+        // FIX: Added expiresIn so tokens don't last forever
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+        res.json({ success: true, token })
 
     } catch (err) {
-        console.log(err);
-        res.json({
-            success: false,
-            message: "error in registering user"
-        })
+        console.error('registerUser error:', err.message)
+        res.json({ success: false, message: "Error in registering user" })
     }
 }
 
-//API for user login
-
+// ================= LOGIN USER =================
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body
         const user = await userModel.findOne({ email })
 
         if (!user) {
-            return res.json({
-                success: false,
-                message: "User does not exist"
-            })
+            return res.json({ success: false, message: "User does not exist" })
         }
 
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (isMatch) {
-            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
-            res.json({
-                success: true,
-                message: "Login successful!",
-                token
-            })
+            // FIX: Added expiresIn so tokens don't last forever
+            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+            res.json({ success: true, message: "Login successful!", token })
         } else {
-            res.json({
-                success: false,
-                message: "invalid credentials!"
-            })
+            res.json({ success: false, message: "Invalid credentials!" })
         }
 
     } catch (err) {
-        console.log(err)
-        res.send({ success: false, message: err.message })
+        console.error('loginUser error:', err.message)
+        res.json({ success: false, message: err.message })
     }
 }
 
-let getProfile = async (req, res) => {
+// ================= GET PROFILE =================
+const getProfile = async (req, res) => {
     try {
-        let userId = req.userId
-
+        const userId = req.userId
         const userData = await userModel.findById(userId).select('-password')
-        res.status(200).json({
-            success: true,
-            userData
-        })
-
+        res.status(200).json({ success: true, userData })
     } catch (err) {
-        console.log(err)
-        res.status(404).json({
-            success: false,
-            message: err.message
-        })
+        console.error('getProfile error:', err.message)
+        res.status(404).json({ success: false, message: err.message })
     }
 }
 
+// ================= UPDATE PROFILE =================
 const updateProfile = async (req, res) => {
     try {
         const userId = req.userId
-        console.log(userId)
         const { name, phone, address, dob, gender } = req.body
         const imgFile = req.file
-        console.log(req.file)
-        console.log(req.body.image)
+
         if (!name || !gender || !phone || !dob) {
-            return res.json({
-                success: false,
-                message: "fill all fields"
-            })
+            return res.json({ success: false, message: "Fill all fields" })
         }
 
-        await userModel.findByIdAndUpdate(userId, { name, phone, address: JSON.parse(address), dob, gender })
+        // FIX: Safe JSON.parse with try-catch
+        let parsedAddress = {}
+        try {
+            parsedAddress = address ? JSON.parse(address) : {}
+        } catch {
+            return res.json({ success: false, message: "Invalid address format" })
+        }
+
+        await userModel.findByIdAndUpdate(userId, { name, phone, address: parsedAddress, dob, gender })
+
         if (imgFile) {
-            //upload img to cloudinary
             const imageUpload = await cloudinary.uploader.upload(imgFile.path, { resource_type: 'image' })
-            console.log(imageUpload)
-            const imgUrl = imageUpload.secure_url;
+            const imgUrl = imageUpload.secure_url
             await userModel.findByIdAndUpdate(userId, { image: imgUrl })
         }
-        res.json({
-            success: true,
-            message: 'Profile updated'
-        })
-    } catch (err) {
-        console.log(err.message)
-        res.status(404).json({
-            success: false,
-            message: err.message
-        })
-    }
 
+        res.json({ success: true, message: 'Profile updated' })
+
+    } catch (err) {
+        console.error('updateProfile error:', err.message)
+        res.status(500).json({ success: false, message: err.message })
+    }
 }
 
+// ================= LIST DOCTORS =================
 const listDoctors = async (req, res) => {
     try {
         const doctors = await doctorModel.find({}).select('-password').sort({ date: -1 })
-
-        res.json({
-            success: true,
-            doctors
-        })
+        res.json({ success: true, doctors })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error fetching doctors"
-        })
+        console.error('listDoctors error:', err.message)
+        res.json({ success: false, message: "Error fetching doctors" })
     }
 }
 
+// ================= FORGOT PASSWORD =================
 const forgotPassword = async (req, res) => {
     try {
         const email = req.body?.email?.trim().toLowerCase()
 
         if (!email) {
-            return res.json({
-                success: false,
-                message: "Email is required"
-            })
+            return res.json({ success: false, message: "Email is required" })
         }
 
         if (!validator.isEmail(email)) {
-            return res.json({
-                success: false,
-                message: "Please enter a valid email"
-            })
+            return res.json({ success: false, message: "Please enter a valid email" })
         }
 
         const user = await findUserByEmail(email)
 
         if (!user) {
-            return res.json({
-                success: false,
-                message: "No account found with this email"
-            })
+            return res.json({ success: false, message: "No account found with this email" })
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString()
@@ -225,12 +169,9 @@ const forgotPassword = async (req, res) => {
 
         await sendPasswordResetEmail(user.email, otp)
 
-        res.json({
-            success: true,
-            message: "Reset code sent to your registered email"
-        })
+        res.json({ success: true, message: "Reset code sent to your registered email" })
     } catch (err) {
-        console.log(err)
+        console.error('forgotPassword error:', err.message)
         res.json({
             success: false,
             message: err.message === 'Email service is not configured'
@@ -240,66 +181,47 @@ const forgotPassword = async (req, res) => {
     }
 }
 
+// ================= VERIFY RESET CODE =================
 const verifyResetCode = async (req, res) => {
     try {
         const email = req.body?.email?.trim().toLowerCase()
         const otp = req.body?.otp?.trim()
 
         if (!email || !otp) {
-            return res.json({
-                success: false,
-                message: "Email and reset code are required"
-            })
+            return res.json({ success: false, message: "Email and reset code are required" })
         }
 
         if (!/^\d{6}$/.test(otp)) {
-            return res.json({
-                success: false,
-                message: "Reset code must be 6 digits"
-            })
+            return res.json({ success: false, message: "Reset code must be 6 digits" })
         }
 
         const user = await findUserByEmail(email)
 
         if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpiresAt) {
-            return res.json({
-                success: false,
-                message: "Invalid or expired reset code"
-            })
+            return res.json({ success: false, message: "Invalid or expired reset code" })
         }
 
         if (user.resetPasswordOtpExpiresAt < new Date()) {
-            return res.json({
-                success: false,
-                message: "Reset code has expired"
-            })
+            return res.json({ success: false, message: "Reset code has expired" })
         }
 
         const isMatch = await bcrypt.compare(otp, user.resetPasswordOtp)
 
         if (!isMatch) {
-            return res.json({
-                success: false,
-                message: "Invalid reset code"
-            })
+            return res.json({ success: false, message: "Invalid reset code" })
         }
 
         user.resetPasswordOtpVerified = true
         await user.save()
 
-        res.json({
-            success: true,
-            message: "Code verified. You can set a new password"
-        })
+        res.json({ success: true, message: "Code verified. You can set a new password" })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error verifying reset code"
-        })
+        console.error('verifyResetCode error:', err.message)
+        res.json({ success: false, message: "Error verifying reset code" })
     }
 }
 
+// ================= RESET PASSWORD =================
 const resetPassword = async (req, res) => {
     try {
         const email = req.body?.email?.trim().toLowerCase()
@@ -307,10 +229,7 @@ const resetPassword = async (req, res) => {
         const { password } = req.body
 
         if (!email || !otp || !password) {
-            return res.json({
-                success: false,
-                message: "Email, reset code and new password are required"
-            })
+            return res.json({ success: false, message: "Email, reset code and new password are required" })
         }
 
         if (!passwordRegex.test(password)) {
@@ -323,26 +242,17 @@ const resetPassword = async (req, res) => {
         const user = await findUserByEmail(email)
 
         if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpiresAt) {
-            return res.json({
-                success: false,
-                message: "Invalid or expired reset code"
-            })
+            return res.json({ success: false, message: "Invalid or expired reset code" })
         }
 
         if (!user.resetPasswordOtpVerified || user.resetPasswordOtpExpiresAt < new Date()) {
-            return res.json({
-                success: false,
-                message: "Please verify a valid reset code first"
-            })
+            return res.json({ success: false, message: "Please verify a valid reset code first" })
         }
 
         const isMatch = await bcrypt.compare(otp, user.resetPasswordOtp)
 
         if (!isMatch) {
-            return res.json({
-                success: false,
-                message: "Invalid reset code"
-            })
+            return res.json({ success: false, message: "Invalid reset code" })
         }
 
         const salt = await bcrypt.genSalt(10)
@@ -352,63 +262,43 @@ const resetPassword = async (req, res) => {
         user.resetPasswordOtpVerified = false
         await user.save()
 
-        res.json({
-            success: true,
-            message: "Password changed successfully"
-        })
+        res.json({ success: true, message: "Password changed successfully" })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error resetting password"
-        })
+        console.error('resetPassword error:', err.message)
+        res.json({ success: false, message: "Error resetting password" })
     }
 }
 
+// ================= BOOK APPOINTMENT =================
 const bookAppointment = async (req, res) => {
     try {
         const userId = req.userId
         const { docId, slotDate, slotTime } = req.body
 
         if (!docId || !slotDate || !slotTime) {
-            return res.json({
-                success: false,
-                message: "Appointment date and time are required"
-            })
+            return res.json({ success: false, message: "Appointment date and time are required" })
         }
 
         const docData = await doctorModel.findById(docId).select('-password')
 
         if (!docData) {
-            return res.json({
-                success: false,
-                message: "Doctor not found"
-            })
+            return res.json({ success: false, message: "Doctor not found" })
         }
 
         if (!docData.available) {
-            return res.json({
-                success: false,
-                message: "Doctor is not available"
-            })
+            return res.json({ success: false, message: "Doctor is not available" })
         }
 
         const slotsBooked = docData.slots_booked || {}
 
         if (slotsBooked[slotDate]?.includes(slotTime)) {
-            return res.json({
-                success: false,
-                message: "Slot already booked"
-            })
+            return res.json({ success: false, message: "Slot already booked" })
         }
 
         const userData = await userModel.findById(userId).select('-password')
 
         if (!userData) {
-            return res.json({
-                success: false,
-                message: "User not found"
-            })
+            return res.json({ success: false, message: "User not found" })
         }
 
         slotsBooked[slotDate] = slotsBooked[slotDate] || []
@@ -430,19 +320,14 @@ const bookAppointment = async (req, res) => {
 
         await doctorModel.findByIdAndUpdate(docId, { slots_booked: slotsBooked })
 
-        res.json({
-            success: true,
-            message: "Appointment booked"
-        })
+        res.json({ success: true, message: "Appointment booked" })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error booking appointment"
-        })
+        console.error('bookAppointment error:', err.message)
+        res.json({ success: false, message: "Error booking appointment" })
     }
 }
 
+// ================= LIST APPOINTMENTS =================
 const listAppointments = async (req, res) => {
     try {
         const userId = req.userId
@@ -454,14 +339,12 @@ const listAppointments = async (req, res) => {
             totalAppointments: appointments.length
         })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error fetching appointments"
-        })
+        console.error('listAppointments error:', err.message)
+        res.json({ success: false, message: "Error fetching appointments" })
     }
 }
 
+// ================= CANCEL APPOINTMENT =================
 const cancelAppointment = async (req, res) => {
     try {
         const userId = req.userId
@@ -470,17 +353,12 @@ const cancelAppointment = async (req, res) => {
         const appointment = await appointmentModel.findById(appointmentId)
 
         if (!appointment) {
-            return res.json({
-                success: false,
-                message: "Appointment not found"
-            })
+            return res.json({ success: false, message: "Appointment not found" })
         }
 
-        if (appointment.userId !== userId) {
-            return res.json({
-                success: false,
-                message: "Not authorized to cancel this appointment"
-            })
+        // FIX: Use .toString() to safely compare ObjectId vs string
+        if (appointment.userId.toString() !== userId.toString()) {
+            return res.json({ success: false, message: "Not authorized to cancel this appointment" })
         }
 
         await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true })
@@ -496,59 +374,40 @@ const cancelAppointment = async (req, res) => {
 
         await doctorModel.findByIdAndUpdate(appointment.docId, { slots_booked: slotsBooked })
 
-        res.json({
-            success: true,
-            message: "Appointment cancelled"
-        })
+        res.json({ success: true, message: "Appointment cancelled" })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error cancelling appointment"
-        })
+        console.error('cancelAppointment error:', err.message)
+        res.json({ success: false, message: "Error cancelling appointment" })
     }
 }
 
+// ================= PAYMENT - CREATE RAZORPAY ORDER =================
 const paymentRazorpay = async (req, res) => {
     try {
         const userId = req.userId
         const { appointmentId } = req.body
 
         if (!appointmentId) {
-            return res.json({
-                success: false,
-                message: "Appointment is required"
-            })
+            return res.json({ success: false, message: "Appointment is required" })
         }
 
         const appointment = await appointmentModel.findById(appointmentId)
 
         if (!appointment) {
-            return res.json({
-                success: false,
-                message: "Appointment not found"
-            })
+            return res.json({ success: false, message: "Appointment not found" })
         }
 
-        if (appointment.userId !== userId) {
-            return res.json({
-                success: false,
-                message: "Not authorized to pay for this appointment"
-            })
+        // FIX: Use .toString() to safely compare ObjectId vs string
+        if (appointment.userId.toString() !== userId.toString()) {
+            return res.json({ success: false, message: "Not authorized to pay for this appointment" })
         }
 
         if (appointment.cancelled) {
-            return res.json({
-                success: false,
-                message: "Cancelled appointments cannot be paid"
-            })
+            return res.json({ success: false, message: "Cancelled appointments cannot be paid" })
         }
 
         if (appointment.payment) {
-            return res.json({
-                success: false,
-                message: "Appointment is already paid"
-            })
+            return res.json({ success: false, message: "Appointment is already paid" })
         }
 
         const razorpayInstance = createRazorpayInstance()
@@ -565,12 +424,9 @@ const paymentRazorpay = async (req, res) => {
         appointment.razorpayOrderId = order.id
         await appointment.save()
 
-        res.json({
-            success: true,
-            order
-        })
+        res.json({ success: true, order })
     } catch (err) {
-        console.log(err)
+        console.error('paymentRazorpay error:', err.message)
         res.json({
             success: false,
             message: err.message === 'Razorpay is not configured'
@@ -580,65 +436,41 @@ const paymentRazorpay = async (req, res) => {
     }
 }
 
+// ================= PAYMENT - VERIFY RAZORPAY =================
 const verifyRazorpay = async (req, res) => {
     try {
         const userId = req.userId
-        const {
-            appointmentId,
-            razorpay_order_id,
-            razorpay_payment_id,
-            razorpay_signature
-        } = req.body
+        const { appointmentId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
 
         if (!appointmentId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.json({
-                success: false,
-                message: "Payment verification details are required"
-            })
+            return res.json({ success: false, message: "Payment verification details are required" })
         }
 
         const appointment = await appointmentModel.findById(appointmentId)
 
         if (!appointment) {
-            return res.json({
-                success: false,
-                message: "Appointment not found"
-            })
+            return res.json({ success: false, message: "Appointment not found" })
         }
 
-        if (appointment.userId !== userId) {
-            return res.json({
-                success: false,
-                message: "Not authorized to verify this payment"
-            })
+        // FIX: Use .toString() to safely compare ObjectId vs string
+        if (appointment.userId.toString() !== userId.toString()) {
+            return res.json({ success: false, message: "Not authorized to verify this payment" })
         }
 
         if (appointment.cancelled) {
-            return res.json({
-                success: false,
-                message: "Cancelled appointments cannot be paid"
-            })
+            return res.json({ success: false, message: "Cancelled appointments cannot be paid" })
         }
 
         if (appointment.payment) {
-            return res.json({
-                success: false,
-                message: "Appointment is already paid"
-            })
+            return res.json({ success: false, message: "Appointment is already paid" })
         }
 
         if (appointment.razorpayOrderId !== razorpay_order_id) {
-            return res.json({
-                success: false,
-                message: "Payment order mismatch"
-            })
+            return res.json({ success: false, message: "Payment order mismatch" })
         }
 
         if (!process.env.RAZORPAY_KEY_SECRET) {
-            return res.json({
-                success: false,
-                message: "Payment service is not configured"
-            })
+            return res.json({ success: false, message: "Payment service is not configured" })
         }
 
         const generatedSignature = crypto
@@ -653,10 +485,7 @@ const verifyRazorpay = async (req, res) => {
             signatureBuffer.length !== generatedSignatureBuffer.length ||
             !crypto.timingSafeEqual(signatureBuffer, generatedSignatureBuffer)
         ) {
-            return res.json({
-                success: false,
-                message: "Payment verification failed"
-            })
+            return res.json({ success: false, message: "Payment verification failed" })
         }
 
         await appointmentModel.findByIdAndUpdate(appointmentId, {
@@ -665,17 +494,25 @@ const verifyRazorpay = async (req, res) => {
             razorpayPaymentId: razorpay_payment_id
         })
 
-        res.json({
-            success: true,
-            message: "Payment successful"
-        })
+        res.json({ success: true, message: "Payment successful" })
     } catch (err) {
-        console.log(err)
-        res.json({
-            success: false,
-            message: "Error verifying payment"
-        })
+        console.error('verifyRazorpay error:', err.message)
+        res.json({ success: false, message: "Error verifying payment" })
     }
 }
 
-export { registerUser, loginUser, forgotPassword, verifyResetCode, resetPassword, getProfile, updateProfile, listDoctors, bookAppointment, listAppointments, cancelAppointment, paymentRazorpay, verifyRazorpay }
+export {
+    registerUser,
+    loginUser,
+    forgotPassword,
+    verifyResetCode,
+    resetPassword,
+    getProfile,
+    updateProfile,
+    listDoctors,
+    bookAppointment,
+    listAppointments,
+    cancelAppointment,
+    paymentRazorpay,
+    verifyRazorpay
+}

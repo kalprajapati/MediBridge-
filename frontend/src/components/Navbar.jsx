@@ -1,83 +1,162 @@
 import React, { useContext, useState } from 'react'
 import { assets_frontend } from '../assets/assets'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { AppContext } from '../context/AppContext';
+import { AppContext } from '../context/AppContext'
 
 const Navbar = () => {
-
-  const navigate = useNavigate();
-
-  let [showMenu, setShowMenu] = useState(false)
-  let [showDropdown, setShowDropdown] = useState(false)
-  let {token, setToken} = useContext(AppContext)
-  let {userData} = useContext(AppContext)
+  const navigate = useNavigate()
+  const [showMenu, setShowMenu] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const { token, setToken, userData } = useContext(AppContext)
 
   const logOut = () => {
     setToken('')
     localStorage.removeItem('token')
+    setShowDropdown(false)
   }
+
+  const navLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/doctors', label: 'Doctors' },
+    { to: '/about', label: 'About' },
+    { to: '/contact', label: 'Contact' },
+  ]
+
   return (
-    <div className="flex items-center justify-between text-sm py-2 px-2 mb-6 mt-3 border-gray-500 shadow-md">
-      <div className="flex items-center gap-2 ">
-        <img onClick={() => { navigate('/') }} src={assets_frontend.logo} className='w-32 cursor-pointer' />
+    <nav className="navbar">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
 
-      </div>
+        {/* Logo */}
+        <img
+          onClick={() => navigate('/')}
+          src={assets_frontend.logo}
+          className="h-9 w-auto cursor-pointer"
+          alt="Prescripto"
+        />
 
+        {/* Desktop nav links */}
+        <ul className="hidden md:flex items-center gap-1">
+          {navLinks.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `nav-link px-3 py-1.5 rounded-lg ${isActive ? 'active-link text-blue-600' : ''}`
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </ul>
 
-
-      <ul className='hidden md:flex items-start gap-5 font-medium '>
-        <NavLink to='/'>
-          <li className='py-1 hover:text-amber-400  transition-all duration-200'>HOME</li>
-          <hr className='border-none outline-none h-0.5 bg-black w-3/5 m-auto hidden' />
-        </NavLink>
-        <NavLink to='/doctors'>
-          <li className='py-1 hover:text-amber-400 transition-all duration-200'>ALL DOCTORS</li>
-          <hr className='border-none outline-none h-0.5 bg-black w-3/5 m-auto hidden' />
-        </NavLink>
-        <NavLink to='/about'>
-          <li className='py-1 hover:text-amber-400 transition-all duration-200'>ABOUT</li>
-          <hr className='border-none outline-none h-0.5 bg-black w-3/5 m-auto hidden' />
-        </NavLink>
-        <NavLink to='/contact'>
-          <li className='py-1 hover:text-amber-400'>CONTACT</li>
-          <hr className='border-none outline-none h-0.5 bg-black w-3/5 m-auto hidden' />
-        </NavLink>
-      </ul>
-      <div className="flex items-center gap-4">
-        {
-          token && userData
-            ?
-            <div onClick={() => setShowDropdown(!showDropdown)} className='flex items-center gap-2.5 cursor-pointer group relative'>
-              <img className='w-8 h-8 rounded-full object-cover' src={userData.image} />
-              <img className='w-2.5' src={assets_frontend.dropdown_icon} />
-              <div className={`absolute top-0 right-0 pt-14 text-sm font-medium text-gray-600 z-30 ${showDropdown ? "block" : "hidden"}`}  >
-                <div className='min-w-48 bg-stone-100 flex flex-col gap-4 p-4 rounded-md'>
-                  <p onClick={() => navigate('/my-profile')} className="hover:text-black cursor-pointer">My Profile</p>
-                  <p onClick={() => navigate('/my-appointments')} className="hover:text-black cursor-pointer">My Appointments</p>
-                  <p onClick={logOut} className="hover:text-black cursor-pointer">Logout</p>
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          {token && userData ? (
+            <div className="relative" onClick={() => setShowDropdown(!showDropdown)}>
+              <button className="flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1.5 transition hover:border-blue-300 hover:bg-blue-100">
+                <img
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-200"
+                  src={userData.image}
+                  alt={userData.name}
+                />
+                <span className="hidden sm:block text-sm font-medium text-slate-700 max-w-24 truncate">
+                  {userData.name}
+                </span>
+                <svg className={`w-3.5 h-3.5 text-slate-500 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showDropdown && (
+                <div className="absolute right-0 top-12 w-48 rounded-xl bg-white border border-blue-100 shadow-lg py-1.5 z-50 fade-up">
+                  {[
+                    { label: 'My Profile', icon: '👤', path: '/my-profile' },
+                    { label: 'My Appointments', icon: '📅', path: '/my-appointments' },
+                  ].map(({ label, icon, path }) => (
+                    <button
+                      key={path}
+                      onClick={() => { navigate(path); setShowDropdown(false) }}
+                      className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                    >
+                      <span>{icon}</span> {label}
+                    </button>
+                  ))}
+                  <div className="my-1 mx-3 border-t border-slate-100" />
+                  <button
+                    onClick={logOut}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition text-left"
+                  >
+                    <span>🚪</span> Logout
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
-            : <button onClick={() => navigate("/login")} className="px-8 py-3 rounded-md text-sm cursor-pointer font-medium hidden md:block hover:bg-amber-400 hover:text-white border transition-all duration-200 ">LOGIN</button>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className="btn-primary hidden md:flex px-5 py-2 text-sm"
+            >
+              Sign In
+            </button>
+          )}
 
-        }
-        <img onClick={() => setShowMenu(true)} className='w-6 md:hidden' src={assets_frontend.menu_icon} />
-
-        <div className={`${showMenu ? 'fixed w-full' : 'h-0 w-0'} md:hidden right-0 top-0 bottom-0 z-20 overflow-hidden bg-white transition-all`}>
-          <div className='flex items-center justify-between px-3 py-2'>
-            <img className="w-32" src={assets_frontend.logo} alt="SiteLogo" />
-            <img className='w-6' onClick={() => setShowMenu(false)} src={assets_frontend.cross_icon} alt='cross icon' />
-          </div>
-          <ul className='flex flex-col items-center gap-2 mt-5 text-md font-medium '>
-            <NavLink onClick={() => setShowMenu(false)} to="/"><p className='px-4 py-2 rounded inline-block'>HOME</p></NavLink>
-            <NavLink onClick={() => setShowMenu(false)} to="/doctors"><p className='px-4 py-2 rounded inline-block'>ALL DOCTORS</p></NavLink>
-            <NavLink onClick={() => setShowMenu(false)} to="/about"><p className='px-4 py-2 rounded inline-block'>ABOUT</p></NavLink>
-            <NavLink onClick={() => setShowMenu(false)} to="/contact"><p className='px-4 py-2 rounded inline-block'>CONTACT</p></NavLink>
-          </ul>
+          {/* Hamburger */}
+          <button
+            onClick={() => setShowMenu(true)}
+            className="md:hidden p-2 rounded-lg hover:bg-blue-50 text-slate-600 transition"
+            aria-label="Open menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
         </div>
-
       </div>
-    </div>
+
+      {/* Mobile drawer */}
+      {showMenu && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div className="flex-1 bg-black/20" onClick={() => setShowMenu(false)} />
+          <div className="w-72 bg-white h-full shadow-2xl flex flex-col fade-up">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-blue-100">
+              <img src={assets_frontend.logo} className="h-8 w-auto" alt="Prescripto" />
+              <button
+                onClick={() => setShowMenu(false)}
+                className="p-2 rounded-lg hover:bg-blue-50 text-slate-500"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex flex-col gap-1 px-3 py-4">
+              {navLinks.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setShowMenu(false)}
+                  className={({ isActive }) =>
+                    `px-4 py-3 rounded-lg text-sm font-medium transition ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="mt-auto px-5 py-5 border-t border-blue-100">
+              {token ? (
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => { navigate('/my-profile'); setShowMenu(false) }} className="btn-outline w-full text-sm py-2.5">My Profile</button>
+                  <button onClick={() => { logOut(); setShowMenu(false) }} className="w-full text-sm py-2.5 text-red-500 hover:bg-red-50 rounded-full transition">Logout</button>
+                </div>
+              ) : (
+                <button onClick={() => { navigate('/login'); setShowMenu(false) }} className="btn-primary w-full text-sm">Sign In</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
   )
 }
 

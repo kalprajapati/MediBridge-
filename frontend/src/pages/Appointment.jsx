@@ -1,237 +1,223 @@
 import React, { useContext, useEffect, useState } from 'react'
 import Footer from '../components/Footer'
 import { useParams, useNavigate } from 'react-router-dom'
-import { AppContext } from '../context/AppContext';
-import { assets_frontend } from '../assets/assets';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import { AppContext } from '../context/AppContext'
+import { assets_frontend } from '../assets/assets'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+
 const Appointment = () => {
-  let { docID } = useParams();
-  let { doctors, currencySymbol, token, backendUrl, loadDoctors } = useContext(AppContext);
-  let [docInfo, setDocInfo] = useState(null);
+  const { docID } = useParams()
+  const { doctors, currencySymbol, token, backendUrl, loadDoctors } = useContext(AppContext)
+  const navigate = useNavigate()
 
-  let [relativeDocs, setRelativeDocs] = useState();
-
-  let navigate = useNavigate();
-
-  let [slots, setSlots] = useState([]);
-  let [selectedDate, setSelectedDate] = useState();
-  let [selectedTime, setSelectedTime] = useState();
-  let [booking, setBooking] = useState(false);
-
-
-  let fetchDoc = async () => {
-    let docInfo = await doctors.find((doc) =>
-      doc._id === docID
-    )
-    setDocInfo(docInfo);
-    console.log(docInfo);
-  }
-
-  let fetchRelativeDocs = async () => {
-    if (!docInfo) return;
-    let rDocs = await doctors.filter((doc) => (
-      doc.speciality === docInfo.speciality && doc._id !== docInfo._id
-
-    ))
-    setRelativeDocs(rDocs);
-  }
+  const [docInfo, setDocInfo] = useState(null)
+  const [relativeDocs, setRelativeDocs] = useState([])
+  const [slots, setSlots] = useState([])
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedTime, setSelectedTime] = useState(null)
+  const [booking, setBooking] = useState(false)
 
   useEffect(() => {
-    fetchRelativeDocs();
+    const doc = doctors.find(d => d._id === docID)
+    setDocInfo(doc || null)
+  }, [doctors, docID])
+
+  useEffect(() => {
+    if (docInfo) {
+      setRelativeDocs(doctors.filter(d => d.speciality === docInfo.speciality && d._id !== docInfo._id))
+    }
   }, [docInfo])
 
-  console.log(relativeDocs);
-
-  let generateSlots = () => {
-    let tempSlots = [];
+  useEffect(() => {
+    const tempSlots = []
     for (let i = 0; i < 7; i++) {
-      let date = new Date();
-      date.setDate(date.getDate() + i);
+      const date = new Date()
+      date.setDate(date.getDate() + i)
       const slotDate = [
         date.getFullYear(),
         String(date.getMonth() + 1).padStart(2, '0'),
-        String(date.getDate()).padStart(2, '0')
-      ].join('-');
-
-      let daySlots = {
+        String(date.getDate()).padStart(2, '0'),
+      ].join('-')
+      tempSlots.push({
         dateObj: date,
         slotDate,
         date: date.getDate(),
         month: date.getMonth(),
-        year: date.getFullYear(),
-        day: date.toLocaleDateString("en-US", { weekday: "short" }),
-        times: [
-          "09:00 AM",
-          "10:00 AM",
-          "11:00 AM",
-          "12:00 PM",
-          "03:00 PM",
-          "04:00 PM",
-        ],
-      };
-
-      tempSlots.push(daySlots);
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        times: ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '03:00 PM', '04:00 PM'],
+      })
     }
-    setSlots(tempSlots);
-    setSelectedTime(tempSlots[0].times[0]);
-    setSelectedDate(tempSlots[0]);
-  }
+    setSlots(tempSlots)
+    setSelectedDate(tempSlots[0])
+    setSelectedTime(tempSlots[0].times[0])
+  }, [])
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   const bookAppointment = async () => {
-    if (!token) {
-      toast.error('Login to book appointment')
-      navigate('/login')
-      return
-    }
-
-    if (!selectedDate || !selectedTime) {
-      toast.error('Select appointment date and time')
-      return
-    }
-
+    if (!token) { toast.error('Login to book an appointment'); navigate('/login'); return }
+    if (!selectedDate || !selectedTime) { toast.error('Select a date and time'); return }
     try {
       setBooking(true)
       const { data } = await axios.post(backendUrl + '/book-appointment', {
         docId: docID,
         slotDate: selectedDate.slotDate,
-        slotTime: selectedTime
+        slotTime: selectedTime,
       }, { headers: { token } })
-
-      if (data.success) {
-        toast.success(data.message)
-        await loadDoctors()
-        navigate('/my-appointments')
-      } else {
-        toast.error(data.message)
-      }
-    } catch (err) {
-      console.log(err)
-      toast.error(err.message)
-    } finally {
-      setBooking(false)
-    }
+      if (data.success) { toast.success(data.message); await loadDoctors(); navigate('/my-appointments') }
+      else toast.error(data.message)
+    } catch (err) { toast.error(err.message) }
+    finally { setBooking(false) }
   }
 
-  console.log(slots);
-
-  useEffect(() => {
-    fetchDoc();
-  }, [doctors, docID, ''])
-
-  useEffect(() => {
-    generateSlots();
-  }, [])
-
-
+  if (!docInfo) {
+    return (
+      <div className="page-wrapper flex flex-col items-center justify-center py-24 gap-4">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+        <p className="text-slate-400 text-sm">Loading doctor info…</p>
+      </div>
+    )
+  }
 
   return (
+    <div className="fade-up">
+      <div className="page-wrapper">
 
-    <div className='flex flex-col justify-center text-gray-700 '>
-      {docInfo ? (
-        <>
-          <div className=' flex flex-col items-center sm:flex-row gap-6 overflow-hidden'>
-            <div className='w-full  md:w-1/3 shrink-0 h-full'>
-              <img className=' bg-amber-300 rounded-xl h-full object-cover' src={docInfo?.image} />
+        {/* Doctor info card */}
+        <div className="flex flex-col sm:flex-row gap-6 mb-8">
+          {/* Photo */}
+          <div className="w-full sm:w-56 md:w-64 flex-shrink-0">
+            <div className="rounded-2xl overflow-hidden bg-blue-50 aspect-square w-full">
+              <img className="w-full h-full object-cover object-top" src={docInfo.image} alt={docInfo.name} />
             </div>
-
-            <div className='flex flex-col md:w-2/3 gap-2 border rounded-xl px-4 py-6 sm:px-8 sm:py-10 border-gray-900 h-auto '>
-              <div className='flex gap-3 items-center'>
-                <h2 className='text-4xl font-semibold text-gray-700'>{docInfo.name} </h2>
-                <img className='w-6' src={assets_frontend.verified_icon} />
-              </div>
-
-              <div className='flex flex-col sm:flex-row gap-3 sm:items-center justify-start'>
-                <h3>{docInfo.degree} - {docInfo.speciality}</h3>
-                <h3 className='border px-5 py-1 rounded-full w-24 '>{docInfo.experience}</h3>
-              </div>
-
-              <div className='flex flex-col gap-3 my-4 '>
-                <div className='flex items-center gap-2 '>
-                  <img className="w-4" src={assets_frontend.info_icon} />
-                  <span><p className='text-lg font-semibold'>About</p></span>
-                </div>
-                <p className=''>
-                  {docInfo.about}
-                </p>
-              </div>
-              <h3 className='text-2xl font-ligh' >Appointment Fees:<span className='font-semibold'> {currencySymbol}{docInfo.fees}</span></h3>
-            </div>
-
           </div>
-          <div className='flex flex-col my-8 md:ml-108 gap-6' >
-            <p className='text-xl font-md text-gray-700'>Booking Slots</p>
-            <div className="flex flex-wrap  md:flex-row gap-4 text-gray-500">
-              {slots.map((item, index) => (
-                <div
-                  key={index}
-                  onClick={() => {
-                    setSelectedDate(item);
-                    setSelectedTime(null); // reset time when date changes
-                  }}
-                  className={`flex flex-col border border-gray-400 w-16 h-24 items-center justify-center rounded-full text-xl cursor-pointer
-                  ${(selectedDate === item) ? "bg-amber-400 text-white shadow-md border-white " : "bg-white"}`}
-                >
-                  <p>{item.day}</p>
-                  <p>{item.date}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-4 mt-6">
-              {selectedDate?.times.map((time, index) => {
-                const booked = docInfo.slots_booked?.[selectedDate.slotDate]?.includes(time)
 
-                return (
+          {/* Details */}
+          <div className="flex-1 bg-white border border-blue-100 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-2xl font-bold text-slate-800">{docInfo.name}</h1>
+              <img className="w-5 h-5" src={assets_frontend.verified_icon} alt="Verified" />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className="badge badge-blue">{docInfo.speciality}</span>
+              <span className="badge" style={{ background: '#f0f9ff', color: '#0369a1' }}>{docInfo.degree}</span>
+              <span className="badge" style={{ background: '#f0fdf4', color: '#166534' }}>{docInfo.experience} exp</span>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <img className="w-4 h-4" src={assets_frontend.info_icon} alt="About" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">{docInfo.about}</p>
+            </div>
+
+            <div className="divider" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">Consultation Fee:</span>
+              <span className="text-lg font-bold text-blue-600">{currencySymbol}{docInfo.fees}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Booking section */}
+        <div className="bg-white border border-blue-100 rounded-2xl p-6 sm:p-8 shadow-sm mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Select Appointment Slot</h2>
+
+          {/* Date picker */}
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Choose a Date</p>
+            <div className="flex gap-2.5 overflow-x-auto pb-2">
+              {slots.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => !booked && setSelectedTime(time)}
-                  disabled={booked}
-                  className={`px-4 py-2 rounded-lg border border-gray-500 
-                  ${selectedTime === time ? "bg-amber-400 text-white border-white shadow-md" : "text-gray-500"} ${booked ? "cursor-not-allowed bg-gray-100 text-gray-300 line-through" : "cursor-pointer"}`}
+                  onClick={() => { setSelectedDate(item); setSelectedTime(null) }}
+                  className={`slot-date ${selectedDate === item ? 'active' : ''}`}
                 >
-                  {time}
+                  <span className="text-xs opacity-80">{item.day}</span>
+                  <span className="text-xl font-bold mt-0.5">{item.date}</span>
+                  <span className="text-xs opacity-70">{MONTHS[item.month]}</span>
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time picker */}
+          <div className="mt-6">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Choose a Time</p>
+            <div className="flex flex-wrap gap-2.5">
+              {selectedDate?.times.map((time, index) => {
+                const booked = docInfo.slots_booked?.[selectedDate.slotDate]?.includes(time)
+                return (
+                  <button
+                    key={index}
+                    onClick={() => !booked && setSelectedTime(time)}
+                    disabled={booked}
+                    className={`slot-time ${selectedTime === time ? 'active' : ''}`}
+                  >
+                    {time}
+                  </button>
                 )
               })}
             </div>
-            <button onClick={bookAppointment} disabled={booking || !selectedTime} className='max-w-60 py-3 px-10 rounded-full bg-amber-400 text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60'>
-              {booking ? 'Booking...' : 'Book Appointment'}
-            </button>
           </div>
-          <div className='flex flex-col justify-center items-center mt-8 gap-8 '>
-            <div className='flex  flex-col items-center gap-3'>
-              <h2 className='text-xl md:text-2xl font-semibold'>Related doctors</h2>
-              <p>Simply browse through our extensive list of Doctors</p>
-            </div>
-            <div className='min-w-2/3 flex justify-center flex-row'>
-              <div className='w-full grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 gap-y-6 px-3 sm:px-0 '>
-                {
-                  relativeDocs?.map((item, index) => (
-                    <div onClick={() => { navigate(`/appointment/${item._id}`); scrollTo(0, 0) }} className="border border-blue-200 rounded-xl overflow-hidden cursor-pointer hover:translate-y-[-10px] duration-200 transition-all" key={index} >
-                      <img className="bg-blue-50  " src={item.image} />
-                      <div className='p-4'>
-                        <div className="flex gap-1.5 items-center " >
-                          <p className="h-2 w-2 bg-green-500 rounded-full"></p>
-                          <p className="text-green-500">Available</p>
-                        </div>
 
-                        <p className='text-gray-900 text-lg font-medium'>{item.name}</p>
-                        <p className='text-sm text-gray-500 font-medium'>{item.speciality}</p>
-                      </div>
-
-                    </div>
-                  ))
-                }
+          {/* Summary & Book */}
+          {selectedDate && selectedTime && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-slate-600">
+                <span className="font-medium text-slate-800">Booking: </span>
+                {selectedDate.day}, {selectedDate.date} {MONTHS[selectedDate.month]} · {selectedTime}
+              </div>
+              <div className="text-sm text-slate-600">
+                <span className="font-medium text-slate-800">Fee: </span>
+                {currencySymbol}{docInfo.fees}
               </div>
             </div>
+          )}
+
+          <button
+            onClick={bookAppointment}
+            disabled={booking || !selectedTime}
+            className="btn-primary mt-5 w-full sm:w-auto px-10 py-3"
+          >
+            {booking ? (
+              <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Booking…</>
+            ) : 'Confirm Appointment'}
+          </button>
+        </div>
+
+        {/* Related doctors */}
+        {relativeDocs.length > 0 && (
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="section-title text-xl">Related Doctors</h2>
+              <p className="section-sub text-sm mt-1">Other {docInfo.speciality} specialists</p>
+            </div>
+            <div className="doctor-grid">
+              {relativeDocs.slice(0, 4).map((item, index) => (
+                <div
+                  key={index}
+                  className="doctor-card"
+                  onClick={() => { navigate(`/appointment/${item._id}`); scrollTo(0, 0) }}
+                >
+                  <img className="doctor-card-img" src={item.image} alt={item.name} />
+                  <div className="doctor-card-body">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="avail-dot green"></span>
+                      <span className="text-xs font-medium text-green-600">Available</span>
+                    </div>
+                    <p className="font-semibold text-slate-800 text-sm">{item.name}</p>
+                    <p className="text-xs text-blue-500 font-medium mt-0.5">{item.speciality}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-
-        </>
-      ) : (
-        <p >Loading</p>
-      )
-      }
-
+        )}
+      </div>
       <Footer />
     </div>
   )
