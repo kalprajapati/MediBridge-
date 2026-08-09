@@ -289,6 +289,18 @@ const bookAppointment = async (req, res) => {
             return res.json({ success: false, message: "Doctor is not available" })
         }
 
+        // Server-side past date and time validation
+        const [year, month, day] = slotDate.split('-').map(Number)
+        let [timeStr, modifier] = slotTime.split(' ')
+        let [hours, minutes] = timeStr.split(':').map(Number)
+        if (modifier === 'PM' && hours < 12) hours += 12
+        if (modifier === 'AM' && hours === 12) hours = 0
+
+        const slotDateTime = new Date(year, month - 1, day, hours, minutes)
+        if (slotDateTime.getTime() <= Date.now()) {
+            return res.json({ success: false, message: "Cannot book an appointment in the past" })
+        }
+
         const slotsBooked = docData.slots_booked || {}
 
         if (slotsBooked[slotDate]?.includes(slotTime)) {

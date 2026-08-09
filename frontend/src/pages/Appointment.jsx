@@ -15,8 +15,31 @@ const Appointment = () => {
   const [relativeDocs, setRelativeDocs] = useState([])
   const [slots, setSlots] = useState([])
   const [selectedDate, setSelectedDate] = useState(null)
-  const [selectedTime, setSelectedTime] = useState(null)
+  const [selectedTime, setSelectedTime] = useState('')
   const [booking, setBooking] = useState(false)
+  const [currentTime, setCurrentTime] = useState(Date.now())
+
+  // Helper to check if a specific date & time slot is in the past
+  const isSlotPast = (slotDateStr, timeStr, nowTime) => {
+    if (!slotDateStr || !timeStr) return false
+    const [year, month, day] = slotDateStr.split('-').map(Number)
+    let [t, modifier] = timeStr.split(' ')
+    let [hours, minutes] = t.split(':').map(Number)
+    if (modifier === 'PM' && hours < 12) hours += 12
+    if (modifier === 'AM' && hours === 12) hours = 0
+    const slotDateTime = new Date(year, month - 1, day, hours, minutes)
+    return slotDateTime.getTime() <= nowTime
+  }
+
+  // 30-minute auto-refresh timer to reload doctor bookings and tick current time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now())
+      loadDoctors()
+    }, 30 * 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [loadDoctors])
 
   useEffect(() => {
     const doc = doctors.find(d => d._id === docID)
@@ -27,7 +50,7 @@ const Appointment = () => {
     if (docInfo) {
       setRelativeDocs(doctors.filter(d => d.speciality === docInfo.speciality && d._id !== docInfo._id))
     }
-  }, [docInfo])
+  }, [docInfo, doctors])
 
   useEffect(() => {
     const tempSlots = []
@@ -50,14 +73,32 @@ const Appointment = () => {
     }
     setSlots(tempSlots)
     setSelectedDate(tempSlots[0])
-    setSelectedTime(tempSlots[0].times[0])
   }, [])
+
+  // Auto select first available valid time slot when selectedDate or docInfo/currentTime updates
+  useEffect(() => {
+    if (selectedDate && selectedDate.times) {
+      const availableTime = selectedDate.times.find(t => {
+        const booked = docInfo?.slots_booked?.[selectedDate.slotDate]?.includes(t)
+        const past = isSlotPast(selectedDate.slotDate, t, currentTime)
+        return !booked && !past
+      })
+      setSelectedTime(availableTime || '')
+    }
+  }, [selectedDate, docInfo, currentTime])
 
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   const bookAppointment = async () => {
     if (!token) { toast.error('Login to book an appointment'); navigate('/login'); return }
-    if (!selectedDate || !selectedTime) { toast.error('Select a date and time'); return }
+    if (!selectedDate || !selectedTime) { toast.error('Select a valid date and time'); return }
+
+    // Client-side past check before network call
+    if (isSlotPast(selectedDate.slotDate, selectedTime, currentTime)) {
+      toast.error('Selected slot has already passed')
+      return
+    }
+
     try {
       setBooking(true)
       const { data } = await axios.post(backendUrl + '/book-appointment', {
@@ -133,7 +174,7 @@ const Appointment = () => {
               {slots.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => { setSelectedDate(item); setSelectedTime(null) }}
+                  onClick={() => setSelectedDate(item)}
                   className={`slot-date ${selectedDate === item ? 'active' : ''}`}
                 >
                   <span className="text-xs opacity-80">{item.day}</span>
@@ -144,23 +185,35 @@ const Appointment = () => {
             </div>
           </div>
 
-          {/* Time picker */}
+          {/* Time picker dropdown */}
           <div className="mt-6">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Choose a Time</p>
-            <div className="flex flex-wrap gap-2.5">
-              {selectedDate?.times.map((time, index) => {
-                const booked = docInfo.slots_booked?.[selectedDate.slotDate]?.includes(time)
-                return (
-                  <button
-                    key={index}
-                    onClick={() => !booked && setSelectedTime(time)}
-                    disabled={booked}
-                    className={`slot-time ${selectedTime === time ? 'active' : ''}`}
-                  >
-                    {time}
-                  </button>
-                )
-              })}
+            <label htmlFor="time-select" className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+              Choose a Time Slot
+            </label>
+            <div className="relative max-w-md">
+              <select
+                id="time-select"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="w-full bg-white border border-blue-200 text-slate-800 text-sm rounded-xl p-3.5 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition cursor-pointer font-medium shadow-sm"
+              >
+                <option value="" disabled>-- Select a Time Slot --</option>
+                {selectedDate?.times.map((time, index) => {
+                  const isBooked = docInfo?.slots_booked?.[selectedDate.slotDate]?.includes(time)
+                  const isPast = isSlotPast(selectedDate.slotDate, time, currentTime)
+                  const isDisabled = isBooked || isPast
+
+                  let label = time
+                  if (isBooked) label += ' (Booked)'
+                  else if (isPast) label += ' (Past)'
+
+                  return (
+                    <option key={index} value={time} disabled={isDisabled}>
+                      {label}
+                    </option>
+                  )
+                })}
+              </select>
             </div>
           </div>
 
@@ -180,8 +233,8 @@ const Appointment = () => {
 
           <button
             onClick={bookAppointment}
-            disabled={booking || !selectedTime}
-            className="btn-primary mt-5 w-full sm:w-auto px-10 py-3"
+            disabled={booking || !selectedTime || isSlotPast(selectedDate?.slotDate, selectedTime, currentTime)}
+            className="btn-primary mt-5 w-full sm:w-auto px-10 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {booking ? (
               <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Booking…</>

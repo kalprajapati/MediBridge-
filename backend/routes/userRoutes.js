@@ -11,8 +11,8 @@ userRouter.post('/forgot-password', forgotPassword);
 userRouter.post('/verify-reset-code', verifyResetCode);
 userRouter.post('/reset-password', resetPassword);
 userRouter.get('/doctors', listDoctors);
-userRouter.get('/get-profile',authUser, getProfile)
-userRouter.post('/update-profile', upload.single('image'),authUser, updateProfile)
+userRouter.get('/get-profile', authUser, getProfile)
+userRouter.post('/update-profile', upload.single('image'), authUser, updateProfile)
 userRouter.post('/book-appointment', authUser, bookAppointment)
 userRouter.get('/appointments', authUser, listAppointments)
 userRouter.post('/cancel-appointment', authUser, cancelAppointment)
@@ -20,4 +20,4 @@ userRouter.post('/payment-razorpay', authUser, paymentRazorpay)
 userRouter.post('/verify-razorpay', authUser, verifyRazorpay)
 
 export default userRouter
- 
+

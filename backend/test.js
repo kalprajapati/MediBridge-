@@ -10,4 +10,4 @@ const generateHash = async () => {
     console.log(hash);
 };
 
-generateHash();
+generateHash(); 
